@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% block title %}{{ course.name }} - CxKitty Web{% endblock %}
+{% block content %}
+<nav class="text-sm text-gray-400 mb-4">
+    <a href="/courses" class="hover:text-primary-500 transition-colors">课程列表</a>
+    <span class="mx-2">/</span>
+    <span class="text-gray-600">{{ course.name }}</span>
+</nav>
+
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-6">
+    <div class="flex items-start justify-between">
+        <div>
+            <h1 class="text-xl font-bold text-gray-800">{{ course.name }}</h1>
+            <p class="text-sm text-gray-400 mt-1">{{ course.teacher_name or '未知教师' }}</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <span class="text-xs px-2 py-1 rounded-full font-medium
+                {% if course.state %}bg-gray-100 text-gray-500{% else %}bg-green-50 text-green-600{% endif %}">
+                {{ '已结课' if course.state else '进行中' }}
+            </span>
+            <button id="btn-export" data-course="{{ course_index }}" onclick="startExport()"
+                class="px-4 py-2 bg-primary-500 text-white text-sm rounded-lg font-medium hover:bg-primary-600 active:scale-[0.98] transition-all">
+                导出 Word
+            </button>
+        </div>
+    </div>
+</div>
+
+{% if not chapters_data %}
+<div class="text-center py-16"><p class="text-gray-400">暂无章节数据</p></div>
+{% else %}
+<div class="space-y-4">
+    {% for item in chapters_data %}
+    {% set ch_index = loop.index0 %}
+    {% set ch = item.chapter %}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="px-5 py-3 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
+            <div>
+                <span class="text-xs text-primary-500 font-medium mr-2">{{ ch.label }}</span>
+                <span class="font-medium text-gray-700">{{ ch.name }}</span>
+            </div>
+            <span class="text-xs text-gray-400">{{ ch.point_finish }}/{{ ch.point_total }} 已完成</span>
+        </div>
+
+        {% if item.points %}
+        <div class="p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+            {% for pt in item.points %}
+            {% set pt_type = pt.__class__.__name__ %}
+            <div class="flex items-center gap-3 p-3 rounded-lg border
+                {% if pt_type == 'ChapterExam' %}border-blue-100 bg-blue-50/30
+                {% elif pt_type == 'ChapterVideo' %}border-green-100 bg-green-50/30
+                {% elif pt_type == 'ChapterDocument' %}border-orange-100 bg-orange-50/30
+                {% else %}border-gray-100 bg-gray-50/30{% endif %}">
+                <span class="text-xs px-2 py-1 rounded-full font-medium shrink-0
+                    {% if pt_type == 'ChapterExam' %}bg-blue-100 text-blue-600
+                    {% elif pt_type == 'ChapterVideo' %}bg-green-100 text-green-600
+                    {% elif pt_type == 'ChapterDocument' %}bg-orange-100 text-orange-600
+                    {% else %}bg-gray-100 text-gray-500{% endif %}">
+                    {{ {'ChapterExam':'测验','ChapterVideo':'视频','ChapterDocument':'文档'}.get(pt_type, '未知') }}
+                </span>
+                <span class="text-sm text-gray-700 flex-1 truncate">{{ pt.title | default('未知任务') }}</span>
+                {% if pt_type == 'ChapterExam' %}
+                <a href="/courses/{{ course_index }}/exams/{{ ch_index }}/{{ loop.index0 }}"
+                    class="text-xs text-primary-500 hover:text-primary-600 font-medium shrink-0">查看题目</a>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="px-5 py-8 text-center text-sm text-gray-400">暂无任务点</div>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- Progress Modal -->
+<div id="export-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 hidden">
+    <div class="bg-white rounded-2xl shadow-xl p-8 w-full max-w-sm mx-4">
+        <h3 id="modal-title" class="text-lg font-semibold text-gray-800 mb-4">正在导出...</h3>
+        <div class="w-full bg-gray-200 rounded-full h-3 mb-3 overflow-hidden">
+            <div id="progress-bar" class="bg-primary-500 h-3 rounded-full transition-all duration-300" style="width:0%"></div>
+        </div>
+        <p id="modal-status" class="text-sm text-gray-400 text-center">准备中...</p>
+        <p id="modal-error" class="text-sm text-red-500 text-center mt-2 hidden"></p>
+    </div>
+</div>
+
+<script>
+function startExport() {
+    var modal = document.getElementById('export-modal');
+    var bar = document.getElementById('progress-bar');
+    var status = document.getElementById('modal-status');
+    var error = document.getElementById('modal-error');
+    var courseIdx = document.getElementById('btn-export').dataset.course;
+
+    modal.classList.remove('hidden');
+    bar.style.width = '0%';
+    status.textContent = '正在发起请求...';
+    error.classList.add('hidden');
+
+    fetch('/api/export/' + courseIdx + '/start', {
+        method: 'POST',
+        credentials: 'same-origin'
+    })
+    .then(function(r) {
+        if (!r.ok) {
+            return r.text().then(function(t) { throw new Error(r.status + ': ' + t.substring(0, 200)); });
+        }
+        return r.json();
+    })
+    .then(function(data) {
+        if (data.error) {
+            showError(data.error);
+            return;
+        }
+        pollTask(data.task_id);
+    })
+    .catch(function(e) {
+        showError(e.message);
+    });
+
+    function pollTask(taskId) {
+        fetch('/api/export/status/' + taskId)
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.error) {
+                showError(data.error);
+                return;
+            }
+            if (data.done) {
+                bar.style.width = '100%';
+                status.textContent = '导出完成，正在下载...';
+                document.getElementById('modal-title').textContent = '导出完成';
+                setTimeout(function() { modal.classList.add('hidden'); }, 600);
+                window.location.href = '/api/export/download/' + taskId;
+                return;
+            }
+            if (data.total > 0) {
+                var pct = Math.round(data.current / data.total * 100);
+                bar.style.width = pct + '%';
+                status.textContent = data.current + ' / ' + data.total + ' 章节';
+            } else {
+                status.textContent = '正在加载...';
+            }
+            setTimeout(function() { pollTask(taskId); }, 800);
+        })
+        .catch(function(e) {
+            showError('请求失败: ' + e.message);
+        });
+    }
+
+    function showError(msg) {
+        error.textContent = msg;
+        error.classList.remove('hidden');
+        status.textContent = '';
+        document.getElementById('modal-title').textContent = '导出失败';
+        setTimeout(function() { modal.classList.add('hidden'); }, 3000);
+    }
+}
+</script>
+{% endblock %}

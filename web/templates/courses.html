@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}课程列表 - CxKitty Web{% endblock %}
+{% block content %}
+<div class="mb-6">
+    <h1 class="text-2xl font-bold text-gray-800">我的课程</h1>
+    <p class="text-gray-400 text-sm mt-1">共 {{ classes|length }} 门课程</p>
+</div>
+
+{% if classes %}
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    {% for c in classes %}
+    <a href="/courses/{{ loop.index0 }}"
+        class="block bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md hover:border-primary-200 transition-all group">
+        <div class="flex items-start justify-between mb-3">
+            <h2 class="font-semibold text-gray-800 group-hover:text-primary-600 transition-colors leading-snug line-clamp-2">
+                {{ c.name }}
+            </h2>
+        </div>
+        <div class="text-sm text-gray-400 mb-3">{{ c.teacher_name or '未知教师' }}</div>
+        <div class="flex items-center justify-between">
+            <span class="text-xs px-2 py-1 rounded-full font-medium
+                {% if c.state %}bg-gray-100 text-gray-500{% else %}bg-green-50 text-green-600{% endif %}">
+                {{ '已结课' if c.state else '进行中' }}
+            </span>
+            <span class="text-xs text-gray-300">{{ c.courseid }}</span>
+        </div>
+    </a>
+    {% endfor %}
+</div>
+{% else %}
+<div class="text-center py-20">
+    <div class="text-5xl mb-4">&#128218;</div>
+    <p class="text-gray-400">暂无课程</p>
+</div>
+{% endif %}
+{% endblock %}

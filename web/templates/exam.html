@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} - {{ course.name }}{% endblock %}
+{% block content %}
+<!-- Breadcrumb -->
+<nav class="text-sm text-gray-400 mb-4">
+    <a href="/courses" class="hover:text-primary-500 transition-colors">课程列表</a>
+    <span class="mx-2">/</span>
+    <a href="/courses/{{ course_index }}" class="hover:text-primary-500 transition-colors">{{ course.name }}</a>
+    <span class="mx-2">/</span>
+    <span class="text-gray-600">{{ chapter.label }} {{ chapter.name }}</span>
+</nav>
+
+<!-- Exam header -->
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-6">
+    <div class="flex items-start justify-between">
+        <div>
+            <h1 class="text-xl font-bold text-gray-800">{{ title }}</h1>
+            <p class="text-sm text-gray-400 mt-1">
+                共 {{ questions|length }} 道题
+                {% set answered = questions|selectattr('answer')|list|length %}
+                {% if answered %}
+                <span class="text-green-500 ml-2">{{ answered }} 道已匹配答案</span>
+                {% endif %}
+            </p>
+        </div>
+        <form method="POST" action="/courses/{{ course_index }}/export">
+            <button type="submit"
+                class="px-4 py-2 bg-primary-500 text-white text-sm rounded-lg font-medium hover:bg-primary-600 active:scale-[0.98] transition-all">
+                导出 Word
+            </button>
+        </form>
+    </div>
+</div>
+
+{% if not questions %}
+<div class="text-center py-16">
+    <p class="text-gray-400">此测验没有题目</p>
+</div>
+{% else %}
+<div class="space-y-4">
+    {% for q in questions %}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <!-- Question header -->
+        <div class="px-5 py-3 bg-gray-50 border-b border-gray-100 flex items-center gap-3">
+            <span class="text-sm font-medium text-gray-500">#{{ loop.index }}</span>
+            <span class="text-xs px-2 py-0.5 rounded-full font-medium bg-primary-50 text-primary-600">
+                {{ question_types.get(q.q_type.value, '未知') }}
+            </span>
+        </div>
+
+        <!-- Question body -->
+        <div class="px-5 py-4">
+            <p class="text-gray-800 leading-relaxed whitespace-pre-wrap">{{ q.value }}</p>
+
+            <!-- Options -->
+            {% if q.answers %}
+            <div class="mt-3 space-y-1.5">
+                {% for key, text in q.answers.items() %}
+                <div class="flex items-start gap-3 py-1.5 px-3 rounded-lg
+                    {% if q.answer and key in q.answer %}bg-green-50 border border-green-100{% endif %}">
+                    <span class="text-sm font-medium shrink-0 w-6 h-6 rounded-full flex items-center justify-center
+                        {% if q.answer and key in q.answer %}bg-green-500 text-white{% else %}bg-gray-100 text-gray-500{% endif %}">
+                        {{ key }}
+                    </span>
+                    <span class="text-sm text-gray-700 pt-0.5">{{ text }}</span>
+                    {% if q.answer and key in q.answer %}
+                    <svg class="w-4 h-4 text-green-500 shrink-0 mt-0.5 ml-auto" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                    </svg>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- No options info -->
+            {% if not q.answers %}
+            <div class="mt-2 text-sm text-gray-400">无选项（{{ question_types.get(q.q_type.value, '未知') }}）</div>
+            {% endif %}
+
+            <!-- Answer -->
+            {% if q.answer %}
+            <div class="mt-3 pt-3 border-t border-dashed border-gray-100">
+                <span class="text-xs font-medium text-green-600">正确答案：</span>
+                <span class="text-sm text-green-700 font-medium">{{ q.answer }}</span>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

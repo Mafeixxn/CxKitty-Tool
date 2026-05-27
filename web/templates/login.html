@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}登录 - CxKitty Web{% endblock %}
+{% block content %}
+<div class="flex items-center justify-center min-h-[80vh]">
+    <div class="w-full max-w-md">
+        <div class="bg-white rounded-2xl shadow-lg p-8">
+            <h1 class="text-2xl font-bold text-gray-800 text-center mb-6">登录学习通</h1>
+
+            <!-- Tab switcher -->
+            <div class="flex border-b border-gray-200 mb-6">
+                <button id="tab-password" onclick="switchTab('password')"
+                    class="flex-1 pb-3 text-sm font-medium border-b-2 transition-colors
+                    {% if not qr_tab %}border-primary-500 text-primary-600{% else %}border-transparent text-gray-400 hover:text-gray-600{% endif %}">
+                    密码登录
+                </button>
+                <button id="tab-qr" onclick="switchTab('qr')"
+                    class="flex-1 pb-3 text-sm font-medium border-b-2 transition-colors
+                    {% if qr_tab %}border-primary-500 text-primary-600{% else %}border-transparent text-gray-400 hover:text-gray-600{% endif %}">
+                    二维码登录
+                </button>
+            </div>
+
+            <!-- Password form -->
+            <div id="panel-password" class="{% if qr_tab %}hidden{% endif %}">
+                <form method="POST" action="/login/password">
+                    <div class="mb-4">
+                        <label class="block text-sm text-gray-600 mb-1">手机号</label>
+                        <input type="text" name="phone" placeholder="请输入手机号"
+                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all">
+                    </div>
+                    <div class="mb-6">
+                        <label class="block text-sm text-gray-600 mb-1">密码</label>
+                        <input type="password" name="password" placeholder="请输入密码"
+                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all">
+                    </div>
+                    <button type="submit"
+                        class="w-full py-2.5 bg-primary-500 text-white rounded-lg font-medium hover:bg-primary-600 active:scale-[0.98] transition-all">
+                        登 录
+                    </button>
+                </form>
+            </div>
+
+            <!-- QR code panel -->
+            <div id="panel-qr" class="{% if not qr_tab %}hidden{% endif %} text-center">
+                {% if qr_svg %}
+                <div class="inline-block p-4 bg-white border rounded-xl mb-4" style="width:220px">
+                    {{ qr_svg | safe }}
+                </div>
+                <p id="qr-status" class="text-sm text-gray-500">请用学习通 APP 扫描二维码</p>
+                <div id="qr-spinner" class="mt-3">
+                    <div class="inline-block w-5 h-5 border-2 border-primary-300 border-t-primary-500 rounded-full animate-spin"></div>
+                </div>
+                {% else %}
+                <p class="text-sm text-gray-400 py-12">点击"二维码登录"标签加载二维码</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+@keyframes spin { to { transform: rotate(360deg); } }
+.animate-spin { animation: spin 0.6s linear infinite; }
+</style>
+
+<script>
+function switchTab(tab) {
+    document.getElementById('panel-password').classList.toggle('hidden', tab !== 'password');
+    document.getElementById('panel-qr').classList.toggle('hidden', tab !== 'qr');
+    document.getElementById('tab-password').classList.toggle('border-primary-500', tab === 'password');
+    document.getElementById('tab-password').classList.toggle('text-primary-600', tab === 'password');
+    document.getElementById('tab-password').classList.toggle('border-transparent', tab !== 'password');
+    document.getElementById('tab-password').classList.toggle('text-gray-400', tab !== 'password');
+    document.getElementById('tab-qr').classList.toggle('border-primary-500', tab === 'qr');
+    document.getElementById('tab-qr').classList.toggle('text-primary-600', tab === 'qr');
+    document.getElementById('tab-qr').classList.toggle('border-transparent', tab !== 'qr');
+    document.getElementById('tab-qr').classList.toggle('text-gray-400', tab !== 'qr');
+    if (tab === 'qr' && !document.getElementById('qr-status')) {
+        location.href = '/login/qr';
+    }
+}
+
+{% if qr_tab %}
+// QR polling
+(function poll() {
+    fetch('/login/qr/status')
+        .then(r => r.json())
+        .then(data => {
+            if (data.status === true) {
+                document.getElementById('qr-status').textContent = '登录成功，正在跳转...';
+                document.getElementById('qr-spinner').style.display = 'none';
+                location.href = '/courses';
+                return;
+            }
+            var type = data.type;
+            if (type === '1') {
+                document.getElementById('qr-status').textContent = '二维码验证失败，请刷新重试';
+                document.getElementById('qr-spinner').style.display = 'none';
+            } else if (type === '2') {
+                document.getElementById('qr-status').textContent = '二维码已过期，请刷新';
+                document.getElementById('qr-spinner').style.display = 'none';
+            } else if (type === '4') {
+                document.getElementById('qr-status').textContent = '已扫描，请在手机上确认...';
+            } else {
+                document.getElementById('qr-status').textContent = data.msg || '等待扫描...';
+            }
+            if (data.type !== '1' && data.type !== '2') {
+                setTimeout(poll, 1500);
+            }
+        })
+        .catch(() => {
+            document.getElementById('qr-status').textContent = '网络错误，3秒后重试...';
+            setTimeout(poll, 3000);
+        });
+})();
+{% endif %}
+</script>
+{% endblock %}
