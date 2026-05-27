@@ -131,4 +131,5 @@ dmypy.json
 .vscode/
 session/*.json
 questions.json
-questions.db
+questions.dbdiagnose.py
+scraper.py
