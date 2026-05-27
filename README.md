@@ -1,7 +1,7 @@
 <div align="center">
     <h1>超星学习通课程导出工具</h1>
     <h2>CxKitty</h2>
-    <img alt="Github License" src="https://img.shields.io/github/license/SocialSisterYi/CxKitty">
+    <img alt="Github License" src="https://img.shields.io/github/license/Mafeixxn/CxKitty-Tool">
 </div>
 
 基于 [SocialSisterYi/CxKitty](https://github.com/SocialSisterYi/CxKitty) 二次开发，将"自动答题"改造为"课程试题爬取与导出"工具。

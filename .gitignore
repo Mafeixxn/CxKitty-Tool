@@ -129,7 +129,10 @@ dmypy.json
 .pyre/
 
 .vscode/
+.claude/
 session/*.json
 questions.json
-questions.dbdiagnose.py
+questions.db
+diagnose.py
 scraper.py
+output/
